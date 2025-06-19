@@ -1,33 +1,38 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Header from './Components/Header';
+import LandingPage from './Components/LandingPage';
+import SignupForm from './Components/SignupForm';
+import FreelancerDashboard from './Components/FreelancerDashboard';
+import ClientDashboard from './Components/ClientDashboard';
+import AdminDashboard from './Components/AdminDashboard';
+import SearchPage from './Components/SearchPage';
+import Messaging from './Components/Messaging';
+import LoginForm from './Components/Login';
 
 function App() {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <BrowserRouter>
+      <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden" style={{ fontFamily: '"Work Sans", "Noto Sans", sans-serif' }}>
+        <Header />
+        <div className="px-40 flex flex-1 justify-center py-5">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/signup" element={<SignupForm />} />
+            <Route path="/freelancer-dashboard" element={<FreelancerDashboard />} />
+            <Route path="/client-dashboard" element={<ClientDashboard />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/messages" element={<Messaging />} />
+            <Route path="/about" element={<div>About Us</div>} />
+            <Route path="/contact" element={<div>Contact Us</div>} />
+            <Route path="/login" element={<LoginForm />} />
+            <Route path="/jobs" element={<div>Job Listings</div>} />
+        </Routes>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

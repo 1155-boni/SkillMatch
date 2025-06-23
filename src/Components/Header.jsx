@@ -6,19 +6,19 @@ function Header() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Update login state when localStorage changes
-    const handleStorageChange = () => {
+    setIsLoggedIn(!!localStorage.getItem('userData'));
+    const handleLoginEvent = () => {
       setIsLoggedIn(!!localStorage.getItem('userData'));
     };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('loginUpdate', handleLoginEvent);
+    return () => window.removeEventListener('loginUpdate', handleLoginEvent);
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('userData');
-    setIsLoggedIn(false); // Update state immediately
-    navigate('/'); // Use navigate for SPA redirection
-    console.log('Logged out, userData removed');
+    setIsLoggedIn(false);
+    navigate('/');
+    console.log('Logged out');
   };
 
   return (
@@ -38,8 +38,9 @@ function Header() {
       </div>
       <div className="flex flex-1 justify-end gap-8">
         <div className="flex items-center gap-9">
-          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/about">About</Link>
-          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/contact">Contact</Link>
+          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/">Home</Link>
+          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/AboutUs">About</Link>
+          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/ContactUs">Contact</Link>
         </div>
         {isLoggedIn ? (
           <button
@@ -50,10 +51,16 @@ function Header() {
           </button>
         ) : (
           <>
-            <Link to="/signup" className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#c9daec] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]">
+            <Link
+              to="/signup"
+              className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#c9daec] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]"
+            >
               <span className="truncate">Sign Up</span>
             </Link>
-            <Link to="/login" className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#f1f2f4] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]">
+            <Link
+              to="/login"
+              className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#f1f2f4] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]"
+            >
               <span className="truncate">Log In</span>
             </Link>
           </>

@@ -5,7 +5,7 @@ function ClientDashboard() {
     title: '',
     description: '',
     salary: '',
-    category: 'Design', // Default category
+    category: 'Design',
     deadline: '',
   });
   const [editingJobId, setEditingJobId] = useState(null);
@@ -17,11 +17,16 @@ function ClientDashboard() {
   const handlePostJob = (event) => {
     event.preventDefault();
     const jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-    const newJob = { ...jobData, id: Date.now(), postedBy: localStorage.getItem('userData') ? JSON.parse(localStorage.getItem('userData')).email : 'Unknown' };
+    const newJob = {
+      ...jobData,
+      id: Date.now(),
+      postedBy: JSON.parse(localStorage.getItem('userData'))?.email || 'Unknown',
+      bookedBy: null,
+      approved: false,
+    };
     jobs.push(newJob);
     localStorage.setItem('jobs', JSON.stringify(jobs));
-    console.log('Job posted:', newJob);
-    setJobData({ title: '', description: '', salary: '', category: 'Design', deadline: '' }); // Reset form
+    setJobData({ title: '', description: '', salary: '', category: 'Design', deadline: '' });
     alert('Job posted successfully!');
   };
 
@@ -37,9 +42,10 @@ function ClientDashboard() {
   const handleUpdateJob = (event) => {
     event.preventDefault();
     const jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-    const updatedJobs = jobs.map((job) => (job.id === editingJobId ? { ...jobData, id: job.id } : job));
+    const updatedJobs = jobs.map((job) =>
+      job.id === editingJobId ? { ...job, ...jobData } : job
+    );
     localStorage.setItem('jobs', JSON.stringify(updatedJobs));
-    console.log('Job updated:', jobData);
     setJobData({ title: '', description: '', salary: '', category: 'Design', deadline: '' });
     setEditingJobId(null);
     alert('Job updated successfully!');
@@ -50,14 +56,25 @@ function ClientDashboard() {
       const jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
       const updatedJobs = jobs.filter((job) => job.id !== jobId);
       localStorage.setItem('jobs', JSON.stringify(updatedJobs));
-      console.log('Job deleted with id:', jobId);
       alert('Job deleted successfully!');
     }
   };
 
+  const handleApproveBooking = (jobId) => {
+    const jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
+    const updatedJobs = jobs.map((job) =>
+      job.id === jobId ? { ...job, approved: true } : job
+    );
+    localStorage.setItem('jobs', JSON.stringify(updatedJobs));
+    alert('Booking approved!');
+    window.location.reload(); // Optional: trigger re-render
+  };
+
+  const jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
+
   return (
     <div className="w-[512px] max-w-[960px] py-5">
-      <h2 className="text-[#121416] text-[28px] font-bold leading-tight px-4 text-center pb-3">Client Dashboard</h2>
+      <h2 className="text-[#121416] text-[28px] font-bold text-center pb-3">Client Dashboard</h2>
       <div className="px-4">
         <p>Post a new job or manage your hires!</p>
         <form onSubmit={editingJobId ? handleUpdateJob : handlePostJob} className="flex flex-col gap-4 mt-4">
@@ -108,14 +125,32 @@ function ClientDashboard() {
             {editingJobId ? 'Update Job' : 'Post Job'}
           </button>
         </form>
+
         <div className="mt-6">
           <h3 className="text-lg font-medium">Posted Jobs</h3>
-          <ul className="list-disc pl-5 mt-2">
-            {JSON.parse(localStorage.getItem('jobs') || '[]').map((job) => (
-              <li key={job.id} className="text-[#6a7581] mb-2">
-                <strong>{job.title}</strong> - ${job.salary} - {job.category} - Deadline: {job.deadline || 'Not set'}
-                <p className="ml-4 text-sm">{job.description}</p>
-                <div className="ml-4 mt-2 flex gap-2">
+          <ul className="list-disc pl-5 mt-2 space-y-4">
+            {jobs.length === 0 && <p className="text-[#6a7581]">No jobs posted yet.</p>}
+            {jobs.map((job) => (
+              <li key={job.id} className="text-[#6a7581] mb-2 bg-[#f9f9f9] p-4 rounded-xl">
+                <strong className="text-[#121416]">{job.title}</strong> — ${job.salary} — {job.category}
+                <p className="text-sm">{job.description}</p>
+                <p className="text-sm">Deadline: {job.deadline || 'Not set'}</p>
+
+                {job.bookedBy && (
+                  <p className="text-sm text-blue-700 mt-2">
+                    Booked by: {job.bookedBy} — {job.approved ? '✅ Approved' : '⏳ Pending'}
+                    {!job.approved && (
+                      <button
+                        onClick={() => handleApproveBooking(job.id)}
+                        className="ml-2 px-3 py-1 bg-blue-500 text-white rounded-full text-xs hover:bg-blue-600"
+                      >
+                        Approve
+                      </button>
+                    )}
+                  </p>
+                )}
+
+                <div className="mt-3 flex gap-2">
                   <button
                     onClick={() => handleEditJob(job.id)}
                     className="bg-[#f1f2f4] rounded-full px-3 py-1 text-sm hover:bg-[#d9dcdf] transition-colors"

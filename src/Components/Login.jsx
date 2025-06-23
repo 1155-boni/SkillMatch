@@ -1,7 +1,11 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 
 function LoginForm() {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
   const navigate = useNavigate();
 
   function handleChange(event) {
@@ -10,34 +14,30 @@ function LoginForm() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    const savedData = localStorage.getItem('userData');
-    if (savedData) {
-      const userData = JSON.parse(savedData);
-      console.log('Saved user data:', userData);
-      console.log('Input data:', formData);
-      if (userData.email === formData.email && userData.password === formData.password) {
-        if (userData.role) {
-          localStorage.setItem('userData', JSON.stringify(userData));
-          console.log('Login successful for role:', userData.role);
-          navigate(`/${userData.role.toLowerCase()}-dashboard`);
-        } else {
-          console.log('No role found in saved data');
-          alert('Account role is missing. Please sign up again.');
-        }
+    // Check against persistent users store
+    const users = JSON.parse(localStorage.getItem('users') || '{}');
+    const user = users[formData.email];
+    if (user) {
+      console.log('Found user:', user);
+      if (user.password === formData.password) {
+        // Store current user in userData for session
+        const userData = {
+          email: user.email,
+          role: user.role,
+        };
+        localStorage.setItem('userData', JSON.stringify(userData));
+        window.dispatchEvent(new Event('loginUpdate'));
+        console.log('Login successful for role:', user.role);
+        navigate(`/${user.role.toLowerCase()}-dashboard`);
       } else {
-        console.log('Login failed: Email or password mismatch');
+        console.log('Login failed: Incorrect password');
         alert('Invalid email or password');
       }
     } else {
-      console.log('No user data found in localStorage');
+      console.log('Login failed: No user found');
       alert('No account found. Please sign up first.');
     }
   }
-
-  const [formData, setFormData] = React.useState({
-    email: '',
-    password: '',
-  });
 
   return (
     <div className="layout-content-container flex flex-col w-[512px] max-w-[512px] py-5 max-w-[960px] flex-1">
@@ -50,6 +50,7 @@ function LoginForm() {
           value={formData.email}
           onChange={handleChange}
           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border-none bg-[#f1f2f4] focus:border-none h-14 placeholder:text-[#6a7581] p-4 text-base font-normal leading-normal"
+          required
         />
         <input
           name="password"
@@ -58,12 +59,18 @@ function LoginForm() {
           value={formData.password}
           onChange={handleChange}
           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#121416] focus:outline-0 focus:ring-0 border-none bg-[#f1f2f4] focus:border-none h-14 placeholder:text-[#6a7581] p-4 text-base font-normal leading-normal"
+          required
         />
-        <button type="submit" className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 flex-1 bg-[#c9daec] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]">
-          <span className="truncate">Log in</span>
+        <button
+          type="submit"
+          className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 flex-1 bg-[#c9daec] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]"
+        >
+          <span className="truncate">Log In</span>
         </button>
       </form>
-      <p className="text-[#6a7581] text-sm font-normal leading-normal pb-3 pt-1 px-4 text-center underline">Don’t have an account? <a href="/signup">Sign up</a></p>
+      <p className="text-[#6a7581] text-sm font-normal leading-normal pb-3 pt-1 px-4 text-center underline">
+        Don’t have an account? <Link to="/signup">Sign up</Link>
+      </p>
     </div>
   );
 }

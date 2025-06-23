@@ -10,7 +10,7 @@ import SearchPage from './Components/SearchPage';
 import Messaging from './Components/Messaging';
 import LoginForm from './Components/Login';
 import AboutUs from './Components/AboutUs';
-import ContactUs from './Components/ContactUS.JSX';
+import ContactUs from './Components/ContactUs';
 import Footer from './Components/Footer';
 import JobListing from './Components/JobListing';
 function App() {

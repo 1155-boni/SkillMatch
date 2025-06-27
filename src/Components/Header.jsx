@@ -1,67 +1,146 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 function Header() {
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('userData'));
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [profile, setProfile] = useState({ username: '', profileImage: '' });
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef();
   const navigate = useNavigate();
 
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem('userData'));
-    const handleLoginEvent = () => {
-      setIsLoggedIn(!!localStorage.getItem('userData'));
+    const updateProfile = () => {
+      const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+      setIsLoggedIn(!!userData.email);
+
+      const profileData = JSON.parse(localStorage.getItem(`profile-${userData.email}`) || '{}');
+      setProfile({
+        username: profileData.username || '',
+        profileImage: profileData.profileImage || '',
+      });
     };
-    window.addEventListener('loginUpdate', handleLoginEvent);
-    return () => window.removeEventListener('loginUpdate', handleLoginEvent);
+
+    updateProfile();
+    window.addEventListener('loginUpdate', updateProfile);
+    return () => window.removeEventListener('loginUpdate', updateProfile);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('userData');
     setIsLoggedIn(false);
     navigate('/');
-    console.log('Logged out');
+  };
+
+  const goToDashboard = () => {
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    if (userData?.role) {
+      navigate(`/${userData.role.toLowerCase()}-dashboard`);
+    }
   };
 
   return (
-    <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f1f2f4] px-10 py-3">
+    <header className="flex items-center justify-between border-b px-10 py-3 bg-white shadow z-50 relative">
+      {/* Logo */}
       <div className="flex items-center gap-4 text-[#121416]">
         <div className="size-4">
           <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               fillRule="evenodd"
               clipRule="evenodd"
-              d="M39.475 21.6262C40.358 21.4363 40.6863 21.5589 40.7581 21.5934C40.7876 21.655 40.8547 21.857 40.8082 22.3336C40.7408 23.0255 40.4502 24.0046 39.8572 25.2301C38.6799 27.6631 36.5085 30.6631 33.5858 33.5858C30.6631 36.5085 27.6632 38.6799 25.2301 39.8572C24.0046 40.4502 23.0255 40.7407 22.3336 40.8082C21.8571 40.8547 21.6551 40.7875 21.5934 40.7581C21.5589 40.6863 21.4363 40.358 21.6262 39.475C21.8562 38.4054 22.4689 36.9657 23.5038 35.2817C24.7575 33.2417 26.5497 30.9744 28.7621 28.762C30.9744 26.5497 33.2417 24.7574 35.2817 23.5037C36.9657 22.4689 38.4054 21.8562 39.475 21.6262ZM4.41189 29.2403L18.7597 43.5881C19.8813 44.7097 21.4027 44.9179 22.7217 44.7893C24.0585 44.659 25.5148 44.1631 26.9723 43.4579C29.9052 42.0387 33.2618 39.5667 36.4142 36.4142C39.5667 33.2618 42.0387 29.9052 43.4579 26.9723C44.1631 25.5148 44.659 24.0585 44.7893 22.7217C44.9179 21.4027 44.7097 19.8813 43.5881 18.7597L29.2403 4.41187C27.8527 3.02428 25.8765 3.02573 24.2861 3.36776C22.6081 3.72863 20.7334 4.58419 18.8396 5.74801C16.4978 7.18716 13.9881 9.18353 11.5858 11.5858C9.18354 13.988 7.18717 16.4978 5.74802 18.8396C4.58421 20.7334 3.72865 22.6081 3.36778 24.2861C3.02574 25.8765 3.02429 27.8527 4.41189 29.2403Z"
+              d="M39.475 21.6262..."
               fill="currentColor"
             />
           </svg>
         </div>
-        <h2 className="text-[#121416] text-lg font-bold leading-tight tracking-[-0.015em]">SkillMatch</h2>
+        <h2 className="text-[#121416] text-lg font-bold tracking-tight">SkillMatch</h2>
       </div>
-      <div className="flex flex-1 justify-end gap-8">
-        <div className="flex items-center gap-9">
-          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/">Home</Link>
-          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/AboutUs">About</Link>
-          <Link className="text-[#121416] text-sm font-medium leading-normal" to="/ContactUs">Contact</Link>
-        </div>
+
+      {/* Navigation + Profile */}
+      <div className="flex flex-1 justify-end gap-8 items-center relative">
+        <nav className="flex gap-6 text-sm font-medium text-[#121416]">
+          <Link to="/">Home</Link>
+          <Link to="/AboutUs">About</Link>
+          <Link to="/ContactUs">Contact</Link>
+        </nav>
+
         {isLoggedIn ? (
-          <button
-            onClick={handleLogout}
-            className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#ff4444] text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#cc0000] transition-colors"
-          >
-            <span className="truncate">Log Out</span>
-          </button>
+          <div className="relative" ref={dropdownRef}>
+            <button
+              className="flex items-center gap-2 focus:outline-none"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+            >
+              {profile.profileImage && (
+                <img
+                  src={profile.profileImage}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover border border-gray-300"
+                />
+              )}
+              {profile.username && (
+                <span className="text-sm font-semibold text-[#121416]">{profile.username}</span>
+              )}
+              <svg
+                className="w-4 h-4 text-[#121416]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-md z-50">
+                <button
+                  onClick={goToDashboard}
+                  className="w-full text-left px-4 py-2 text-sm text-[#121416] hover:bg-[#f9f9f9]"
+                >
+                  Dashboard
+                </button>
+                <Link
+                  to="/profile"
+                  className="block px-4 py-2 text-sm text-[#121416] hover:bg-[#f9f9f9]"
+                >
+                  Edit Profile
+                </Link>
+                <Link
+                  to="/settings"
+                  className="block px-4 py-2 text-sm text-[#121416] hover:bg-[#f9f9f9]"
+                >
+                  Settings
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-[#f9f9f9]"
+                >
+                  Log Out
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <Link
               to="/signup"
-              className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#c9daec] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]"
+              className="rounded-full bg-[#c9daec] text-[#121416] text-sm font-bold px-4 h-10 flex items-center"
             >
-              <span className="truncate">Sign Up</span>
+              Sign Up
             </Link>
             <Link
               to="/login"
-              className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#f1f2f4] text-[#121416] text-sm font-bold leading-normal tracking-[0.015em]"
+              className="rounded-full bg-[#f1f2f4] text-[#121416] text-sm font-bold px-4 h-10 flex items-center"
             >
-              <span className="truncate">Log In</span>
+              Log In
             </Link>
           </>
         )}

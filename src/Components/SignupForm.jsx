@@ -1,34 +1,34 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 
 function SignupForm() {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'freelancer',
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "freelancer",
   });
   const navigate = useNavigate();
 
   function handleChange(event) {
     setFormData({ ...formData, [event.target.name]: event.target.value });
-    console.log('Input changed:', { [event.target.name]: event.target.value });
+    console.log("Input changed:", { [event.target.name]: event.target.value });
   }
 
   function handleSubmit(event) {
     event.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setMessage('Passwords do not match!'); // Fixed bug
+      setMessage("Passwords do not match!"); // Fixed bug
       return;
     }
     try {
-      console.log('Initiating save, formData:', formData);
+      console.log("Initiating save, formData:", formData);
       // Store user in a separate 'users' key to persist across logouts
-      const users = JSON.parse(localStorage.getItem('users') || '{}');
+      const users = JSON.parse(localStorage.getItem("users") || "{}");
       if (users[formData.email]) {
-        setMessage('Email already registered!');
+        setMessage("Email already registered!");
         return;
       }
       users[formData.email] = {
@@ -37,28 +37,38 @@ function SignupForm() {
         password: formData.password, // Note: Insecure; use backend in production
         role: formData.role,
       };
-      localStorage.setItem('users', JSON.stringify(users));
+      localStorage.setItem("users", JSON.stringify(users));
       // Store current user in 'userData' for session
       const userData = {
         email: formData.email,
         role: formData.role,
       };
-      localStorage.setItem('userData', JSON.stringify(userData));
-      console.log('Verification after save:', JSON.parse(localStorage.getItem('users') || '{}'));
+      localStorage.setItem("userData", JSON.stringify(userData));
+      console.log(
+        "Verification after save:",
+        JSON.parse(localStorage.getItem("users") || "{}")
+      );
       // Dispatch loginUpdate event
-      window.dispatchEvent(new Event('loginUpdate'));
-      console.log('Signup successful, navigating to:', `${formData.role.toLowerCase()}-dashboard`);
+      window.dispatchEvent(new Event("loginUpdate"));
+      console.log(
+        "Signup successful, navigating to:",
+        `${formData.role.toLowerCase()}-dashboard`
+      );
       navigate(`/${formData.role.toLowerCase()}-dashboard`);
     } catch (error) {
-      console.error('Save error:', error);
+      console.error("Save error:", error);
       setMessage(`Save failed: ${error.message}`);
     }
   }
 
   return (
     <div className="layout-content-container flex flex-col w-[512px] max-w-[512px] py-5 max-w-[960px] flex-1">
-      <h2 className="text-[#121416] tracking-light text-[28px] font-bold leading-tight px-4 text-center pb-3 pt-5">Create your account</h2>
-      {message && <p className="text-[#ff4444] text-sm text-center px-4">{message}</p>}
+      <h2 className="text-[#121416] tracking-light text-[28px] font-bold leading-tight px-4 text-center pb-3 pt-5">
+        Create your account
+      </h2>
+      {message && (
+        <p className="text-[#ff4444] text-sm text-center px-4">{message}</p>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-4">
         <input
           id="name"

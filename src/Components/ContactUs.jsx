@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 function ContactUs() {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: '',
+    name: "",
+    email: "",
+    message: "",
   });
 
   const handleChange = (event) => {
@@ -13,21 +13,26 @@ function ContactUs() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    console.log('Contact form submitted:', formData);
-    alert('Thank you for your message! We will get back to you soon.');
-    setFormData({ name: '', email: '', message: '' }); // Reset form
+    console.log("Contact form submitted:", formData);
+    alert("Thank you for your message! We will get back to you soon.");
+    setFormData({ name: "", email: "", message: "" }); // Reset form
   };
 
   return (
     <div className="layout-content-container flex flex-col items-center w-full max-w-[960px] py-10 px-4">
-      <h1 className="text-[#121416] text-[32px] font-bold leading-tight mb-6">Contact Us</h1>
+      <h1 className="text-[#121416] text-[32px] font-bold leading-tight mb-6">
+        Contact Us
+      </h1>
       <p className="text-[#6a7581] text-lg leading-relaxed mb-6 text-center">
-        We’d love to hear from you! Whether you have a question, feedback, or need assistance, feel free to reach out. Our team is here to help.
+        We’d love to hear from you! Whether you have a question, feedback, or
+        need assistance, feel free to reach out. Our team is here to help.
       </p>
 
       <div className="flex flex-col md:flex-row gap-8 w-full">
         <div className="flex-1 bg-[#f1f2f4] p-6 rounded-xl">
-          <h3 className="text-[#121416] text-xl font-semibold mb-4">Get in Touch</h3>
+          <h3 className="text-[#121416] text-xl font-semibold mb-4">
+            Get in Touch
+          </h3>
           <p className="text-[#6a7581] text-base mb-2">
             <strong>Email:</strong> support@skillmatch.com
           </p>
@@ -40,7 +45,9 @@ function ContactUs() {
         </div>
 
         <div className="flex-1">
-          <h3 className="text-[#121416] text-xl font-semibold mb-4">Send Us a Message</h3>
+          <h3 className="text-[#121416] text-xl font-semibold mb-4">
+            Send Us a Message
+          </h3>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
               id="name"

@@ -1,56 +1,116 @@
 import React, { useEffect, useState } from 'react';
 
 function FreelancerDashboard() {
+  const user = JSON.parse(localStorage.getItem('userData') || '{}');
   const [jobs, setJobs] = useState([]);
-  const user = JSON.parse(localStorage.getItem('userData')) || { email: 'freelancer@example.com' };
+  const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    const storedJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-    setJobs(storedJobs);
+    const allJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
+    setJobs(allJobs);
+    const storedBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+    const myBookings = storedBookings.filter(b => b.freelancer === user.email);
+    setBookings(myBookings);
   }, []);
 
   const handleBookJob = (jobId) => {
-    const updatedJobs = jobs.map(job =>
-      job.id === jobId && !job.bookedBy
-        ? { ...job, bookedBy: user.email, approved: false }
-        : job
-    );
-    setJobs(updatedJobs);
-    localStorage.setItem('jobs', JSON.stringify(updatedJobs));
-    alert('Job booked! Wait for client approval.');
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    const newBooking = {
+      jobId,
+      freelancer: user.email,
+      status: 'Awaiting Approval',
+      bookedAt: new Date().toISOString(),
+    };
+
+    const updatedBookings = [...bookings, newBooking];
+    const allBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
+    localStorage.setItem('bookings', JSON.stringify([...allBookings, newBooking]));
+    setBookings(updatedBookings);
+    alert('Job booked! Awaiting client approval.');
   };
 
-  return (
-    <div className="w-[512px] max-w-[960px] py-5">
-      <h2 className="text-[#121416] text-[28px] font-bold text-center pb-3">Freelancer Dashboard</h2>
-      <div className="px-4">
-        <p className="mb-4">Welcome, {user.email}! Browse and book gigs.</p>
+  const handleCancelBooking = (jobId) => {
+    const updatedBookings = bookings.filter(b => b.jobId !== jobId);
+    const allBookings = JSON.parse(localStorage.getItem('bookings') || '[]')
+      .filter(b => !(b.jobId === jobId && b.freelancer === user.email));
+    localStorage.setItem('bookings', JSON.stringify(allBookings));
+    setBookings(updatedBookings);
+    alert('Booking canceled.');
+  };
 
-        <h3 className="text-lg font-semibold mb-2">Available Jobs</h3>
-        {jobs.filter(job => !job.bookedBy).length === 0 ? (
-          <p>No open jobs available at the moment.</p>
+  const isBooked = (jobId) => bookings.some(b => b.jobId === jobId);
+
+  return (
+    <div className="w-full max-w-4xl mx-auto py-6 px-4">
+      <h2 className="text-2xl font-bold text-center mb-4">Freelancer Dashboard</h2>
+
+      <section className="mb-6">
+        <h3 className="text-xl font-semibold mb-2">Available Jobs</h3>
+        {jobs.length === 0 ? (
+          <p>No jobs available at the moment.</p>
         ) : (
           <ul className="space-y-4">
-            {jobs
-              .filter(job => !job.bookedBy)
-              .map(job => (
-                <li key={job.id} className="p-4 bg-[#f1f2f4] rounded-xl">
+            {jobs.map(job => {
+              const booked = isBooked(job.id);
+              return (
+                <li key={job.id} className="bg-[#f1f2f4] p-4 rounded-xl">
                   <h4 className="font-semibold">{job.title}</h4>
-                  <p className="text-sm">{job.description}</p>
-                  <p className="text-sm text-[#6a7581]">Salary: ${job.salary}</p>
-                  <p className="text-sm text-[#6a7581]">Category: {job.category}</p>
-                  <p className="text-sm text-[#6a7581]">Deadline: {job.deadline}</p>
-                  <button
-                    onClick={() => handleBookJob(job.id)}
-                    className="mt-2 bg-[#4CAF50] text-white px-3 py-1 rounded-full text-sm hover:bg-[#43a047]"
-                  >
-                    Book This Job
-                  </button>
+                  <p className="text-sm text-[#6a7581]">{job.description}</p>
+                  <p className="text-sm">Salary: ${job.salary}</p>
+                  <p className="text-sm">Deadline: {job.deadline}</p>
+                  {!booked && (
+                    <button
+                      onClick={() => handleBookJob(job.id)}
+                      className="mt-2 bg-green-600 text-white px-4 py-1 rounded-full text-sm hover:bg-green-700"
+                    >
+                      Book Job
+                    </button>
+                  )}
+                  {booked && (
+                    <span className="mt-2 inline-block bg-yellow-500 text-white px-3 py-1 rounded-full text-sm">
+                      Booked
+                    </span>
+                  )}
                 </li>
-              ))}
+              );
+            })}
           </ul>
         )}
-      </div>
+      </section>
+
+      <section>
+        <h3 className="text-xl font-semibold mb-2">My Bookings</h3>
+        {bookings.length === 0 ? (
+          <p>No bookings yet.</p>
+        ) : (
+          <ul className="space-y-4">
+            {bookings.map(booking => {
+              const job = jobs.find(j => j.id === booking.jobId);
+              if (!job) return null;
+              return (
+                <li key={booking.jobId} className="bg-white p-4 rounded-xl border">
+                  <h4 className="font-semibold">{job.title}</h4>
+                  <p className="text-sm text-[#6a7581]">{job.description}</p>
+                  <p className="text-sm">Salary: ${job.salary}</p>
+                  <p className="text-sm">Status: 
+                    <span className={`ml-2 font-medium ${booking.status === 'Approved' ? 'text-green-600' : 'text-yellow-600'}`}>
+                      {booking.status}
+                    </span>
+                  </p>
+                  <button
+                    onClick={() => handleCancelBooking(booking.jobId)}
+                    className="mt-2 bg-red-600 text-white px-4 py-1 rounded-full text-sm hover:bg-red-700"
+                  >
+                    Cancel Booking
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

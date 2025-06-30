@@ -37,7 +37,7 @@ function ContactUs() {
             <strong>Email:</strong> support@skillmatch.com
           </p>
           <p className="text-[#6a7581] text-base mb-2">
-            <strong>Phone:</strong> +1-800-SKILLMATCH
+            <strong>Phone:</strong> +254-7439-21109 SKILLMATCH
           </p>
           <p className="text-[#6a7581] text-base">
             <strong>Address:</strong> 123 Skill Street, Tech City, TC 12345

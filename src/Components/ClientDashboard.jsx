@@ -1,185 +1,217 @@
 import React, { useState, useEffect } from 'react';
+import Messaging from './Messaging';
+import { db } from '../firebase';
+import {
+  collection,
+  query,
+  where,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  setDoc
+} from 'firebase/firestore';
 
 function ClientDashboard() {
   const user = JSON.parse(localStorage.getItem('userData'));
   const clientEmail = user?.email || '';
 
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [jobData, setJobData] = useState({
-    title: '',
-    description: '',
-    salary: '',
-    category: 'Design',
-    deadline: '',
+    title: '', description: '', salary: '', category: 'Design', deadline: '',
   });
-
   const [editingJobId, setEditingJobId] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [message, setMessage] = useState(''); // <-- Add message state
 
   useEffect(() => {
-    const storedJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-    setJobs(storedJobs.filter(job => job.postedBy === clientEmail));
+    // Listen for jobs posted by this client
+    const jobsQuery = query(collection(db, 'jobs'), where('postedBy', '==', clientEmail));
+    const unsubJobs = onSnapshot(jobsQuery, (snapshot) => {
+      const jobList = [];
+      snapshot.forEach(doc => jobList.push({ ...doc.data(), id: doc.id }));
+      setJobs(jobList);
+    });
 
-    const storedBookings = JSON.parse(localStorage.getItem('bookings') || '[]');
-    setBookings(storedBookings);
-  }, []);
+    // Listen for all bookings
+    const unsubBookings = onSnapshot(collection(db, 'bookings'), (snapshot) => {
+      const bookingList = [];
+      snapshot.forEach(doc => bookingList.push({ ...doc.data(), id: doc.id }));
+      setBookings(bookingList);
+    });
 
-  const handleChange = (event) => {
-    setJobData({ ...jobData, [event.target.name]: event.target.value });
-  };
-
-  const handlePostJob = (event) => {
-    event.preventDefault();
-    const allJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-    const newJob = {
-      ...jobData,
-      id: Date.now(),
-      postedBy: clientEmail,
+    return () => {
+      unsubJobs();
+      unsubBookings();
     };
-    const updatedJobs = [...allJobs, newJob];
-    localStorage.setItem('jobs', JSON.stringify(updatedJobs));
-    setJobs(updatedJobs.filter(job => job.postedBy === clientEmail));
-    setJobData({ title: '', description: '', salary: '', category: 'Design', deadline: '' });
-    alert('Job posted successfully!');
+  }, [clientEmail]);
+
+  const updateJob = (j) => {
+    setJobData(j);
+    setEditingJobId(j.id);
   };
 
-  const handleEditJob = (jobId) => {
-    const jobToEdit = jobs.find(job => job.id === jobId);
-    if (jobToEdit) {
-      setJobData(jobToEdit);
-      setEditingJobId(jobId);
-    }
-  };
-
-  const handleUpdateJob = (event) => {
-    event.preventDefault();
+  const refreshJobs = () => {
     const allJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-    const updatedJobs = allJobs.map(job =>
-      job.id === editingJobId ? { ...jobData, id: job.id, postedBy: clientEmail } : job
-    );
-    localStorage.setItem('jobs', JSON.stringify(updatedJobs));
-    setJobs(updatedJobs.filter(job => job.postedBy === clientEmail));
+    setJobs(allJobs.filter(j => j.postedBy === clientEmail));
+  };
+
+  const refreshBookings = () => {
+    setBookings(JSON.parse(localStorage.getItem('bookings') || '[]'));
+  };
+
+  const handlePostUpdateDelete = async (e, mode) => {
+    e.preventDefault();
+    if (mode === 'post') {
+      await addDoc(collection(db, 'jobs'), { ...jobData, postedBy: clientEmail });
+      setMessage('Job posted successfully!');
+    } else {
+      await updateDoc(doc(db, 'jobs', editingJobId), { ...jobData, postedBy: clientEmail });
+      setMessage('Job updated successfully!');
+    }
     setJobData({ title: '', description: '', salary: '', category: 'Design', deadline: '' });
     setEditingJobId(null);
-    alert('Job updated successfully!');
   };
 
-  const handleDeleteJob = (jobId) => {
-    if (window.confirm('Are you sure you want to delete this job?')) {
-      const allJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-      const updatedJobs = allJobs.filter(job => job.id !== jobId);
-      localStorage.setItem('jobs', JSON.stringify(updatedJobs));
-      setJobs(updatedJobs.filter(job => job.postedBy === clientEmail));
-      alert('Job deleted successfully!');
-    }
+  const handleDeleteJob = async (jobId) => {
+    await deleteDoc(doc(db, 'jobs', jobId));
+    setMessage('Job deleted.');
   };
 
-  const handleApprove = (jobId, freelancerEmail) => {
-    const updatedBookings = bookings.map(b =>
-      b.jobId === jobId && b.freelancer === freelancerEmail
-        ? { ...b, status: 'Approved' }
-        : b
+  const bookingAction = async (jobId, freelancer, action) => {
+    // Find the booking document
+    const q = query(
+      collection(db, 'bookings'),
+      where('jobId', '==', jobId),
+      where('freelancer', '==', freelancer)
     );
-    setBookings(updatedBookings);
-    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+    const snapshot = await getDocs(q);
+    snapshot.forEach(async (docSnap) => {
+      if (action === 'approve') {
+        await updateDoc(doc(db, 'bookings', docSnap.id), { status: 'Approved' });
+        setMessage('Booking approved.');
+      } else {
+        await deleteDoc(doc(db, 'bookings', docSnap.id));
+        setMessage('Booking rejected.');
+      }
+    });
   };
 
-  const handleReject = (jobId, freelancerEmail) => {
-    const updatedBookings = bookings.filter(
-      b => !(b.jobId === jobId && b.freelancer === freelancerEmail)
-    );
-    setBookings(updatedBookings);
-    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-  };
+  const awaiting = bookings.filter(b =>
+    jobs.some(j => j.id === b.jobId) && b.status === 'Awaiting Approval'
+  );
 
-  const awaitingApproval = bookings.filter(b => {
-    return jobs.some(j => j.id === b.jobId) && b.status === 'Awaiting Approval';
-  });
-
-  const approvedBookings = bookings.filter(b => {
-    return jobs.some(j => j.id === b.jobId) && b.status === 'Approved';
-  });
+  const approved = bookings.filter(b =>
+    jobs.some(j => j.id === b.jobId) && b.status === 'Approved'
+  );
 
   return (
-    <div className="w-full max-w-[960px] py-5 px-4">
-      <h2 className="text-[28px] font-bold text-center pb-3">Client Dashboard</h2>
-
-      {/* Job Form */}
-      <form onSubmit={editingJobId ? handleUpdateJob : handlePostJob} className="flex flex-col gap-4 mb-6 bg-[#f9f9f9] p-4 rounded-xl">
-        <input name="title" placeholder="Job title" value={jobData.title} onChange={handleChange} className="p-3 rounded bg-[#f1f2f4]" required />
-        <textarea name="description" placeholder="Job description" value={jobData.description} onChange={handleChange} className="p-3 rounded bg-[#f1f2f4]" />
-        <input name="salary" type="number" placeholder="Salary" value={jobData.salary} onChange={handleChange} className="p-3 rounded bg-[#f1f2f4]" />
-        <select name="category" value={jobData.category} onChange={handleChange} className="p-3 rounded bg-[#f1f2f4]">
-          <option value="Design">Design</option>
-          <option value="Development">Development</option>
-          <option value="Writing">Writing</option>
-        </select>
-        <input name="deadline" type="date" value={jobData.deadline} onChange={handleChange} className="p-3 rounded bg-[#f1f2f4]" />
-        <button type="submit" className="bg-[#c9daec] px-4 py-2 rounded-full font-bold">
-          {editingJobId ? 'Update Job' : 'Post Job'}
-        </button>
-      </form>
-
-      {/* Job List */}
-      <h3 className="text-xl font-semibold mb-2">Posted Jobs</h3>
-      {jobs.length === 0 ? (
-        <p>No jobs posted yet.</p>
-      ) : (
-        <ul className="space-y-4">
-          {jobs.map((job) => (
-            <li key={job.id} className="p-4 bg-[#f1f2f4] rounded-xl">
-              <strong>{job.title}</strong> - ${job.salary} - {job.category} - Deadline: {job.deadline || 'Not set'}
-              <p>{job.description}</p>
-              <div className="mt-2 flex gap-2">
-                <button onClick={() => handleEditJob(job.id)} className="bg-yellow-400 px-3 py-1 rounded-full text-sm">Edit</button>
-                <button onClick={() => handleDeleteJob(job.id)} className="bg-red-500 px-3 py-1 rounded-full text-white text-sm">Delete</button>
-              </div>
-            </li>
-          ))}
-        </ul>
+    <div className="max-w-4xl mx-auto p-6">
+      <h2 className="text-2xl font-bold text-center mb-6">Client Dashboard</h2>
+      {/* Show message if exists */}
+      {message && (
+        <div className="mb-4 p-3 bg-blue-100 text-blue-800 rounded">
+          {message}
+          <button
+            className="ml-2 text-blue-500 underline"
+            onClick={() => setMessage('')}
+          >
+            Dismiss
+          </button>
+        </div>
       )}
-
-      {/* Bookings Awaiting Approval */}
-      <div className="mt-8">
-        <h3 className="text-xl font-semibold mb-2">Bookings Awaiting Approval</h3>
-        {awaitingApproval.length === 0 ? (
-          <p>No bookings awaiting approval.</p>
-        ) : (
-          <ul className="space-y-3">
-            {awaitingApproval.map((b, idx) => {
-              const job = jobs.find(j => j.id === b.jobId);
-              return (
-                <li key={idx} className="bg-yellow-100 p-3 rounded">
-                  <p><strong>{job?.title}</strong> booked by <em>{b.freelancer}</em></p>
-                  <div className="mt-2 flex gap-2">
-                    <button onClick={() => handleApprove(b.jobId, b.freelancer)} className="bg-green-500 text-white px-3 py-1 rounded-full text-sm">Approve</button>
-                    <button onClick={() => handleReject(b.jobId, b.freelancer)} className="bg-red-500 text-white px-3 py-1 rounded-full text-sm">Reject</button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`px-4 py-2 rounded-full ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+        >
+          Dashboard
+        </button>
+        <button
+          onClick={() => setActiveTab('messages')}
+          className={`px-4 py-2 rounded-full ${activeTab === 'messages' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+        >
+          Messages
+        </button>
       </div>
 
-      {/* Approved Bookings */}
-      <div className="mt-8">
-        <h3 className="text-xl font-semibold mb-2">Approved Bookings</h3>
-        {approvedBookings.length === 0 ? (
-          <p>No approved bookings yet.</p>
-        ) : (
-          <ul className="space-y-3">
-            {approvedBookings.map((b, idx) => {
-              const job = jobs.find(j => j.id === b.jobId);
-              return (
-                <li key={idx} className="bg-green-100 p-3 rounded">
-                  <p><strong>{job?.title}</strong> - Approved for <em>{b.freelancer}</em></p>
-                </li>
-              );
-            })}
-          </ul>
+      {activeTab === 'messages'
+        ? <Messaging user={user} />
+        : (
+          <>
+            <form onSubmit={(e) => handlePostUpdateDelete(e, editingJobId ? 'update' : 'post')} className="bg-gray-100 p-4 rounded mb-8 space-y-3">
+              <input name="title" placeholder="Job title" value={jobData.title} onChange={e => setJobData({ ...jobData, [e.target.name]: e.target.value })} className="w-full p-2 rounded bg-white" required />
+              <textarea name="description" placeholder="Job description" value={jobData.description} onChange={e => setJobData({ ...jobData, [e.target.name]: e.target.value })} className="w-full p-2 rounded bg-white" />
+              <div className="grid grid-cols-2 gap-3">
+                <input name="salary" placeholder="Salary" type="number" value={jobData.salary} onChange={e => setJobData({ ...jobData, [e.target.name]: e.target.value })} className="p-2 rounded bg-white" />
+                <select name="category" value={jobData.category} onChange={e => setJobData({ ...jobData, [e.target.name]: e.target.value })} className="p-2 rounded bg-white">
+                  <option>Design</option><option>Development</option><option>Writing</option>
+                </select>
+              </div>
+              <input name="deadline" type="date" value={jobData.deadline} onChange={e => setJobData({ ...jobData, [e.target.name]: e.target.value })} className="p-2 rounded bg-white" />
+              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-full">
+                {editingJobId ? 'Update Job' : 'Post Job'}
+              </button>
+            </form>
+
+            <section className="space-y-6">
+              <div>
+                <h3 className="text-xl font-semibold mb-2">Posted Jobs</h3>
+                {jobs.length === 0 ? <p>No jobs posted.</p> :
+                  <ul className="space-y-3">
+                    {jobs.map(j => (
+                      <li key={j.id} className="bg-gray-100 p-4 rounded flex justify-between items-start">
+                        <div>
+                          <strong>{j.title}</strong> — ${j.salary} — {j.category} — {j.deadline || 'No deadline'}
+                          <p>{j.description}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <button onClick={() => updateJob(j)} className="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+                          <button onClick={() => handleDeleteJob(j.id)} className="bg-red-500 text-white px-3 py-1 rounded">Delete</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                }
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold mb-2">Awaiting Approval</h3>
+                {awaiting.length === 0 ? <p>No awaiting bookings.</p> :
+                  <ul className="space-y-3">
+                    {awaiting.map((b,i) => {
+                      const job = jobs.find(j => j.id === b.jobId);
+                      return (
+                        <li key={i} className="bg-yellow-100 p-4 rounded flex justify-between items-center">
+                          <span><strong>{job.title}</strong> booked by {b.freelancer}</span>
+                          <div className="space-x-2">
+                            <button onClick={() => bookingAction(b.jobId, b.freelancer, 'approve')} className="bg-green-600 text-white px-3 py-1 rounded">Approve</button>
+                            <button onClick={() => bookingAction(b.jobId, b.freelancer, 'reject')} className="bg-red-600 text-white px-3 py-1 rounded">Reject</button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                }
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold mb-2">Approved Bookings</h3>
+                {approved.length === 0 ? <p>No approved bookings.</p> :
+                  <ul className="space-y-3">
+                    {approved.map((b,i) => {
+                      const job = jobs.find(j => j.id === b.jobId);
+                      return <li key={i} className="bg-green-100 p-4 rounded"><strong>{job.title}</strong> — Approved for {b.freelancer}</li>;
+                    })}
+                  </ul>
+                }
+              </div>
+            </section>
+          </>
         )}
-      </div>
     </div>
   );
 }

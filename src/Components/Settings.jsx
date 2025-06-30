@@ -1,76 +1,73 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { db } from '../firebase';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 
-function SettingsPage() {
-  const user = JSON.parse(localStorage.getItem('userData') || '{}');
-
+function Settings() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [language, setLanguage] = useState(localStorage.getItem('app-language') || 'en');
+  const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    localStorage.setItem('app-language', language);
-  }, [language]);
+  const user = JSON.parse(localStorage.getItem('userData') || '{}');
 
-  const handleDeleteAccount = () => {
-    const users = JSON.parse(localStorage.getItem('users') || '{}');
-    delete users[user.email];
-    localStorage.setItem('users', JSON.stringify(users));
-    localStorage.removeItem('userData');
-    localStorage.removeItem(`profile-${user.email}`);
-    alert('Account deleted');
-    window.location.href = '/';
+  const handlePasswordChange = async () => {
+    if (!user.email) {
+      setMessage('User not found.');
+      return;
+    }
+    try {
+      const userRef = doc(db, 'users', user.email);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        await updateDoc(userRef, { password });
+        setMessage('Password updated!');
+        setPassword('');
+      } else {
+        setMessage('User not found.');
+      }
+    } catch (err) {
+      setMessage('Failed to update password.');
+    }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6 text-[#121416]">Account Settings</h1>
+    <div className="max-w-xl mx-auto py-10 px-4">
+      <h2 className="text-xl font-bold mb-6 text-[#121416]">Settings</h2>
 
-      {/* Password Update */}
+      {/* Show message if exists */}
+      {message && (
+        <div className="mb-4 p-3 bg-blue-100 text-blue-800 rounded text-center">
+          {message}
+        </div>
+      )}
+
+      {/* Update Password Section */}
       <div className="mb-6">
-        <label className="block font-medium mb-1">New Password</label>
+        <label className="block text-[#121416] font-medium mb-2">New Password</label>
         <div className="relative">
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="form-input w-full bg-[#f1f2f4] p-3 rounded-xl pr-10"
             placeholder="Enter new password"
+            className="w-full bg-[#f1f2f4] rounded-xl p-3 pr-10"
           />
           <button
             type="button"
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-[#6a7581]"
+            className="absolute top-1/2 right-3 transform -translate-y-1/2 text-sm text-gray-500"
             onClick={() => setShowPassword(!showPassword)}
           >
-            {showPassword ? 'Hide' : 'Show'}
+            {showPassword ? '🙈' : '👁️'}
           </button>
         </div>
-      </div>
-
-      {/* Language Selector */}
-      <div className="mb-6">
-        <label className="block font-medium mb-1">Language</label>
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className="form-select w-full bg-[#f1f2f4] p-3 rounded-xl"
-        >
-          <option value="en">English</option>
-          <option value="sw">Swahili</option>
-          <option value="fr">French</option>
-        </select>
-      </div>
-
-      {/* Delete Account */}
-      <div className="mb-6">
         <button
-          onClick={handleDeleteAccount}
-          className="bg-[#ff4444] hover:bg-[#cc0000] text-white px-6 py-2 rounded-full font-semibold"
+          onClick={handlePasswordChange}
+          className="mt-4 bg-[#c9daec] text-[#121416] font-semibold py-2 px-4 rounded-full hover:bg-[#a3c6e0]"
         >
-          Delete Account
+          Update Password
         </button>
       </div>
     </div>
   );
 }
 
-export default SettingsPage;
+export default Settings;

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -8,16 +10,31 @@ function Header() {
   const dropdownRef = useRef();
   const navigate = useNavigate();
 
+  // Fetch profile from Firestore
   useEffect(() => {
-    const updateProfile = () => {
+    const updateProfile = async () => {
       const userData = JSON.parse(localStorage.getItem('userData') || '{}');
       setIsLoggedIn(!!userData.email);
 
-      const profileData = JSON.parse(localStorage.getItem(`profile-${userData.email}`) || '{}');
-      setProfile({
-        username: profileData.username || '',
-        profileImage: profileData.profileImage || '',
-      });
+      if (userData.email) {
+        try {
+          const docRef = doc(db, 'users', userData.email);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setProfile({
+              username: data.username || '',
+              profileImage: data.profileImage || '',
+            });
+          } else {
+            setProfile({ username: '', profileImage: '' });
+          }
+        } catch {
+          setProfile({ username: '', profileImage: '' });
+        }
+      } else {
+        setProfile({ username: '', profileImage: '' });
+      }
     };
 
     updateProfile();
@@ -38,6 +55,7 @@ function Header() {
   const handleLogout = () => {
     localStorage.removeItem('userData');
     setIsLoggedIn(false);
+    setProfile({ username: '', profileImage: '' });
     navigate('/');
   };
 

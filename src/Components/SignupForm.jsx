@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { db } from "../firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 function SignupForm() {
   const [message, setMessage] = useState("");
@@ -14,50 +16,39 @@ function SignupForm() {
 
   function handleChange(event) {
     setFormData({ ...formData, [event.target.name]: event.target.value });
-    console.log("Input changed:", { [event.target.name]: event.target.value });
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setMessage("Passwords do not match!"); // Fixed bug
+      setMessage("Passwords do not match!");
       return;
     }
     try {
-      console.log("Initiating save, formData:", formData);
-      // Store user in a separate 'users' key to persist across logouts
-      const users = JSON.parse(localStorage.getItem("users") || "{}");
-      if (users[formData.email]) {
+      // Check if user already exists in Firestore
+      const userRef = doc(db, "users", formData.email);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
         setMessage("Email already registered!");
         return;
       }
-      users[formData.email] = {
+      // Save user to Firestore
+      await setDoc(userRef, {
         name: formData.name,
         email: formData.email,
-        password: formData.password, // Note: Insecure; use backend in production
+        password: formData.password, // Note: Insecure, use Firebase Auth in production!
         role: formData.role,
-      };
-      localStorage.setItem("users", JSON.stringify(users));
+      });
       // Store current user in 'userData' for session
       const userData = {
         email: formData.email,
         role: formData.role,
       };
       localStorage.setItem("userData", JSON.stringify(userData));
-      console.log(
-        "Verification after save:",
-        JSON.parse(localStorage.getItem("users") || "{}")
-      );
-      // Dispatch loginUpdate event
       window.dispatchEvent(new Event("loginUpdate"));
-      console.log(
-        "Signup successful, navigating to:",
-        `${formData.role.toLowerCase()}-dashboard`
-      );
       navigate(`/${formData.role.toLowerCase()}-dashboard`);
     } catch (error) {
-      console.error("Save error:", error);
-      setMessage(`Save failed: ${error.message}`);
+      setMessage(`Signup failed: ${error.message}`);
     }
   }
 

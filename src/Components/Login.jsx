@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 function LoginForm() {
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
   function handleChange(e) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
 
     // 🔐 Check if admin login
@@ -27,17 +30,26 @@ function LoginForm() {
       return;
     }
 
-    // 🔍 Check regular users from localStorage
-    const users = JSON.parse(localStorage.getItem("users") || "{}");
-    const user = users[formData.email];
+    // 🔍 Check regular users from Firestore
+    try {
+      const userRef = doc(db, "users", formData.email);
+      const userSnap = await getDoc(userRef);
 
-    if (user && user.password === formData.password) {
-      const userData = { email: user.email, role: user.role };
-      localStorage.setItem("userData", JSON.stringify(userData));
-      window.dispatchEvent(new Event("loginUpdate"));
-      navigate(`/${user.role.toLowerCase()}-dashboard`);
-    } else {
-      alert("Invalid credentials or user not found.");
+      if (userSnap.exists()) {
+        const user = userSnap.data();
+        if (user.password === formData.password) {
+          const userData = { email: user.email, role: user.role };
+          localStorage.setItem("userData", JSON.stringify(userData));
+          window.dispatchEvent(new Event("loginUpdate"));
+          navigate(`/${user.role.toLowerCase()}-dashboard`);
+        } else {
+          setMessage("Invalid password.");
+        }
+      } else {
+        setMessage("User not found.");
+      }
+    } catch (err) {
+      setMessage("Login failed. Please try again.");
     }
   }
 
@@ -46,6 +58,11 @@ function LoginForm() {
       <h2 className="text-[28px] font-bold text-center pb-3">
         Log in to your account
       </h2>
+      {message && (
+        <div className="mb-4 p-3 bg-red-100 text-red-800 rounded text-center">
+          {message}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-4">
         <input
           name="email"

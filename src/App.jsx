@@ -19,6 +19,7 @@ import Translations from "./Components/Translations";
 function App() {
   return (
     <>
+    
       <BrowserRouter>
         <div
           className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden"
@@ -44,7 +45,7 @@ function App() {
               <Route path="/jobs" element={<JobListing />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/translations" element={<Translations />} />
-              {/* Fallback route for any unmatched paths */}
+              
             </Routes>
           </div>
           <Footer />

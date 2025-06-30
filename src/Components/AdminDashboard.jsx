@@ -1,4 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { db } from '../firebase';
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  setDoc
+} from 'firebase/firestore';
 
 function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -7,30 +17,56 @@ function AdminDashboard() {
   const [jobs, setJobs] = useState([]);
   const [editingJobId, setEditingJobId] = useState(null);
   const [editedJob, setEditedJob] = useState({});
+  const [message, setMessage] = useState(''); // <-- Add message state
+  const [confirmDelete, setConfirmDelete] = useState(null); // <-- For user delete confirmation
   const usersPerPage = 5;
 
   const adminEmail = "dietboni@gmail.com";
 
   useEffect(() => {
-    const allUsers = JSON.parse(localStorage.getItem("users") || "{}");
-    const userList = Object.values(allUsers).filter(user => user.email !== adminEmail);
-    setUsers(userList);
+    // Listen for users
+    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      const userList = [];
+      snapshot.forEach(doc => {
+        if (doc.id !== adminEmail) {
+          userList.push({ ...doc.data(), email: doc.id });
+        }
+      });
+      setUsers(userList);
+    });
 
-    const allJobs = JSON.parse(localStorage.getItem("jobs") || "[]");
-    setJobs(allJobs);
+    // Listen for jobs
+    const unsubJobs = onSnapshot(collection(db, "jobs"), (snapshot) => {
+      const jobList = [];
+      snapshot.forEach(doc => {
+        jobList.push({ ...doc.data(), id: doc.id });
+      });
+      setJobs(jobList);
+    });
+
+    return () => {
+      unsubUsers();
+      unsubJobs();
+    };
   }, []);
 
   const togglePassword = (email) => {
     setShowPassword((prev) => ({ ...prev, [email]: !prev[email] }));
   };
 
+  // Replace window.confirm with a custom confirmation message
   const handleDeleteUser = (email) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      const allUsers = JSON.parse(localStorage.getItem("users") || "{}");
-      delete allUsers[email];
-      localStorage.setItem("users", JSON.stringify(allUsers));
-      setUsers(Object.values(allUsers).filter(user => user.email !== adminEmail));
-    }
+    setConfirmDelete(email);
+  };
+
+  const confirmDeleteUser = async (email) => {
+    await deleteDoc(doc(db, "users", email));
+    setMessage('User deleted.');
+    setConfirmDelete(null);
+  };
+
+  const cancelDeleteUser = () => {
+    setConfirmDelete(null);
   };
 
   const handleEditClick = (job) => {
@@ -42,24 +78,21 @@ function AdminDashboard() {
     setEditedJob({ ...editedJob, [e.target.name]: e.target.value });
   };
 
-  const handleSaveJob = () => {
-    const updatedJobs = jobs.map(job => job.id === editingJobId ? editedJob : job);
-    setJobs(updatedJobs);
-    localStorage.setItem("jobs", JSON.stringify(updatedJobs));
+  // Replace alert with a message
+  const handleSaveJob = async () => {
+    await updateDoc(doc(db, "jobs", editingJobId), editedJob);
     setEditingJobId(null);
-    alert("Job updated successfully");
+    setMessage("Job updated successfully.");
   };
 
-  const handleApprove = (jobId) => {
-    const updatedJobs = jobs.map(job => job.id === jobId ? { ...job, isApproved: true } : job);
-    setJobs(updatedJobs);
-    localStorage.setItem("jobs", JSON.stringify(updatedJobs));
+  const handleApprove = async (jobId) => {
+    await updateDoc(doc(db, "jobs", jobId), { isApproved: true });
+    setMessage("Job approved.");
   };
 
-  const handleReject = (jobId) => {
-    const updatedJobs = jobs.filter(job => job.id !== jobId);
-    setJobs(updatedJobs);
-    localStorage.setItem("jobs", JSON.stringify(updatedJobs));
+  const handleReject = async (jobId) => {
+    await deleteDoc(doc(db, "jobs", jobId));
+    setMessage("Job rejected or deleted.");
   };
 
   const indexOfLast = currentPage * usersPerPage;
@@ -71,6 +104,40 @@ function AdminDashboard() {
   return (
     <div className="max-w-[1100px] mx-auto py-10 px-6">
       <h1 className="text-3xl font-bold mb-6 text-center">Admin Dashboard</h1>
+
+      {/* Show message if exists */}
+      {message && (
+        <div className="mb-4 p-3 bg-blue-100 text-blue-800 rounded">
+          {message}
+          <button
+            className="ml-2 text-blue-500 underline"
+            onClick={() => setMessage('')}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Show custom confirm dialog for user deletion */}
+      {confirmDelete && (
+        <div className="mb-4 p-3 bg-red-100 text-red-800 rounded flex items-center justify-between">
+          <span>Are you sure you want to delete user <b>{confirmDelete}</b>?</span>
+          <div>
+            <button
+              className="bg-red-600 text-white px-3 py-1 rounded mr-2"
+              onClick={() => confirmDeleteUser(confirmDelete)}
+            >
+              Yes, Delete
+            </button>
+            <button
+              className="bg-gray-300 px-3 py-1 rounded"
+              onClick={cancelDeleteUser}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mb-10">
         <h2 className="text-xl font-semibold mb-4">Users List</h2>

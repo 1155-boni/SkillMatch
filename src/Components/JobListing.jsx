@@ -1,5 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { db } from "../firebase";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 
 function JobListing() {
   const user = JSON.parse(localStorage.getItem("userData") || "{}");
@@ -8,19 +16,7 @@ function JobListing() {
   const isFreelancer = user && user.role === "freelancer";
   const canPostJob = user && user.role === "client"; // ✅ Only clients can post jobs
 
-  const [jobs, setJobs] = useState([
-    {
-      id: 1,
-      title: "Web Developer",
-      description: "Create a responsive website for a small business.",
-      salary: "60",
-      design: "UI/UX",
-      deadline: "2025-06-30",
-      postedDate: "2025-06-18",
-    },
-    // Add more default jobs if needed
-  ]);
-
+  const [jobs, setJobs] = useState([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -28,8 +24,28 @@ function JobListing() {
     design: "",
     deadline: "",
   });
-
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "jobs"), (snapshot) => {
+      const jobList = [];
+      snapshot.forEach(doc => jobList.push({ ...doc.data(), id: doc.id }));
+      setJobs(jobList);
+    });
+    return () => unsub();
+  }, []);
+
+  // If you want to show only the current client's jobs:
+  const clientJobs = jobs.filter((job) => job.postedBy === user.email);
+
+  // If you want to show all jobs, use `jobs` instead of `clientJobs` below
+
+  const filteredJobs = clientJobs.filter(
+    (job) =>
+      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (job.category || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleChange = (event) => {
     setFormData({ ...formData, [event.target.name]: event.target.value });
@@ -39,14 +55,14 @@ function JobListing() {
     setSearchQuery(event.target.value);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const newJob = {
-      id: Date.now(),
       ...formData,
+      postedBy: user.email,
       postedDate: new Date().toISOString().split("T")[0],
     };
-    setJobs([...jobs, newJob]);
+    await addDoc(collection(db, "jobs"), newJob);
     setFormData({
       title: "",
       description: "",
@@ -60,13 +76,6 @@ function JobListing() {
   const handleBid = (jobId, jobTitle) => {
     alert(`Bid placed on job: ${jobTitle} (ID: ${jobId})`);
   };
-
-  const filteredJobs = jobs.filter(
-    (job) =>
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.design.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="layout-content-container flex flex-col w-full max-w-[960px] py-10 px-4">
@@ -212,6 +221,24 @@ function JobListing() {
           </p>
         )}
       </div>
+
+      {/* Client's Posted Jobs */}
+      {canPostJob && (
+        <div className="mt-10">
+          <h2 className="text-[#121416] text-xl font-semibold mb-4">
+            Your Posted Jobs
+          </h2>
+          {clientJobs.length === 0 ? (
+            <p>No jobs posted.</p>
+          ) : (
+            <ul>
+              {clientJobs.map((job) => (
+                <li key={job.id}>{job.title}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

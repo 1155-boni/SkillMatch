@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 function UserProfile() {
   const user = JSON.parse(localStorage.getItem('userData') || '{}');
@@ -12,10 +14,27 @@ function UserProfile() {
     socialLinks: '',
     profileImage: '',
   });
+  const [message, setMessage] = useState('');
 
+  // Load profile from Firestore
   useEffect(() => {
-    const storedProfile = JSON.parse(localStorage.getItem(`profile-${user.email}`));
-    if (storedProfile) setProfile(storedProfile);
+    if (!user.email) return;
+    const fetchProfile = async () => {
+      const docRef = doc(db, 'users', user.email);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setProfile({
+          username: data.username || '',
+          bio: data.bio || '',
+          location: data.location || '',
+          phone: data.phone || '',
+          socialLinks: data.socialLinks || '',
+          profileImage: data.profileImage || '',
+        });
+      }
+    };
+    fetchProfile();
   }, [user.email]);
 
   const handleChange = (e) => {
@@ -24,24 +43,29 @@ function UserProfile() {
       const reader = new FileReader();
       reader.onload = () => {
         const imageDataUrl = reader.result;
-        setProfile((prev) => {
-          const updated = { ...prev, profileImage: imageDataUrl };
-          localStorage.setItem(`profile-${user.email}`, JSON.stringify(updated));
-          return updated;
-        });
+        setProfile((prev) => ({
+          ...prev,
+          profileImage: imageDataUrl,
+        }));
       };
       reader.readAsDataURL(files[0]);
     } else {
-      setProfile((prev) => {
-        const updated = { ...prev, [name]: value };
-        return updated;
-      });
+      setProfile((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
     }
   };
 
-  const handleSave = () => {
-    localStorage.setItem(`profile-${user.email}`, JSON.stringify(profile));
-    alert('Profile saved!');
+  const handleSave = async () => {
+    if (!user.email) return;
+    await setDoc(doc(db, 'users', user.email), {
+      ...profile,
+      email: user.email,
+      role: user.role,
+    }, { merge: true });
+    setMessage('Profile saved!');
+    setTimeout(() => setMessage(''), 2000);
   };
 
   const triggerFilePicker = () => {
@@ -128,6 +152,11 @@ function UserProfile() {
       >
         Save Profile
       </button>
+      {message && (
+        <div className="mt-4 p-3 bg-blue-100 text-blue-800 rounded text-center">
+          {message}
+        </div>
+      )}
     </div>
   );
 }

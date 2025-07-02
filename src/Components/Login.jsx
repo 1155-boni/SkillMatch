@@ -54,7 +54,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-[512px] py-5 mx-auto">
+    <div className="bg-white dark:bg-gray-900 text-[#121416] dark:text-gray-100 w-[512px] py-5 mx-auto">
       <h2 className="text-[28px] font-bold text-center pb-3">
         Log in to your account
       </h2>

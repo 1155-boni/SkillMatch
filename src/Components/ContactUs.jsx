@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 function ContactUs() {
   const [formData, setFormData] = useState({
@@ -11,11 +13,18 @@ function ContactUs() {
     setFormData({ ...formData, [event.target.name]: event.target.value });
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log("Contact form submitted:", formData);
-    alert("Thank you for your message! We will get back to you soon.");
-    setFormData({ name: "", email: "", message: "" }); // Reset form
+    try {
+      await addDoc(collection(db, "contactMessages"), {
+        ...formData,
+        sentAt: new Date().toISOString(),
+      });
+      alert("Thank you for your message! We will get back to you soon.");
+      setFormData({ name: "", email: "", message: "" });
+    } catch (err) {
+      alert("Failed to send message. Please try again.");
+    }
   };
 
   return (
@@ -34,7 +43,7 @@ function ContactUs() {
             Get in Touch
           </h3>
           <p className="text-[#6a7581] text-base mb-2">
-            <strong>Email:</strong> support@skillmatch.com
+            <strong>Email:</strong> dietboni@gmail.com.com
           </p>
           <p className="text-[#6a7581] text-base mb-2">
             <strong>Phone:</strong> +254-7439-21109 SKILLMATCH
